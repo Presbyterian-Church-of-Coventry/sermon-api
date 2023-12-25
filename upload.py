@@ -1,43 +1,21 @@
 import os
 import boto3
-import httplib2
-from git import Repo
-from git import Actor
+from halo import Halo
 from time import sleep
+from git.repo import Repo
+from git.util import Actor
 import sermonaudio as sapy
-from types import SimpleNamespace
+from dotenv import load_dotenv
 from datetime import datetime, timedelta
 from googleapiclient.discovery import build
-from googleapiclient.http import MediaFileUpload
-from oauth2client.client import flow_from_clientsecrets
-from oauth2client.file import Storage
-from oauth2client.tools import run_flow
-from sermonaudio.broadcaster.requests import Broadcaster
 from sermonaudio.models import SermonEventType
-from halo import Halo
-from dotenv import load_dotenv
+from googleapiclient.http import MediaFileUpload
+from google.oauth2.credentials import Credentials
+from google.auth.transport.requests import Request
+from google_auth_oauthlib.flow import InstalledAppFlow
+from sermonaudio.broadcaster.requests import Broadcaster
 
 load_dotenv()
-
-try:
-    import httplib
-except ImportError:
-    import http.client as httplib
-
-
-RETRIABLE_EXCEPTIONS = (
-    httplib2.HttpLib2Error,
-    IOError,
-    httplib.NotConnected,
-    httplib.IncompleteRead,
-    httplib.ImproperConnectionState,
-    httplib.CannotSendRequest,
-    httplib.CannotSendHeader,
-    httplib.ResponseNotReady,
-    httplib.BadStatusLine,
-)
-RETRIABLE_STATUS_CODES = [500, 502, 503, 504]
-
 
 # Upload sermon markdown to Git and thus website
 def git(title, text, speaker, series, date, audio, video):
@@ -95,7 +73,9 @@ audio: {audio}
         repo = Repo(repo_path)
         # Commit sermon Markdown
         repo.index.add("content/sermons/" + filename)
-        repo.index.commit(f'Create Sermon "{filename[:-3]}"', author=author, committer=author)
+        repo.index.commit(
+            f'Create Sermon "{filename[:-3]}"', author=author, committer=author
+        )
         # Make remote if it doesn't exist
         try:
             repo.create_remote("origin", repo_access)
@@ -180,25 +160,24 @@ def youtube(file, title, text, speaker, date):
         response = None
         error = None
         retry = 0
+        creds = None
         # Authentication
-        flow = flow_from_clientsecrets(
-            "data/client_secrets.json",
-            scope="https://www.googleapis.com/auth/youtube.upload",
-        )
-        # This will need to be refreshed every few months.
-        storage = Storage("data/oauth2.json")
-        credentials = storage.get()
-        ip = SimpleNamespace(
-            auth_host_name="localhost",
-            auth_host_port=[8080, 8090],
-            logging_level="ERROR",
-            noauth_local_webserver=False,
-        )
-        if credentials is None or credentials.invalid:
-            credentials = run_flow(flow, storage, ip)
-            print("Run locally to update oauth2.json.")
-            exit()
-        auth = build("youtube", "v3", http=credentials.authorize(httplib2.Http()))
+        scope = ["https://www.googleapis.com/auth/youtube.upload"]
+        oauth_file = "data/oauth2.json"
+        if os.path.exists(oauth_file):
+            creds = Credentials.from_authorized_user_file(oauth_file, scope)
+        if not creds or not creds.valid:
+            if creds and creds.expired and creds.refresh_token:
+                creds.refresh(Request())
+            else:
+                flow = InstalledAppFlow.from_client_secrets_file(
+                    "data/client_secrets.json", scope
+                )
+                creds = flow.run_local_server(port=8080)
+            # Save the credentials for the next run
+            with open(oauth_file, "w") as token:
+                token.write(creds.to_json())
+        auth = build("youtube", "v3", credentials=creds)
         # Pretty date
         parts = date.split("-")
         pdate = parts[1].lstrip("0") + "/" + parts[2].lstrip("0") + "/" + parts[0][-2:]
@@ -246,7 +225,7 @@ def youtube(file, title, text, speaker, date):
                         return False
             except:
                 error = "exists"
-                # A video upload costs 1600 "units," and each account gets 10000 "units" a day. 
+                # A video upload costs 1600 "units," and each account gets 10000 "units" a day.
                 # Repeated uploads hit this, so if there are errors that's probably it.
             if error is not None:
                 retry += 1

@@ -32,6 +32,10 @@ from halo import Halo
 from flask import Flask, request, jsonify
 from flask_cors import CORS
 from dotenv import load_dotenv
+from oauth2client.client import flow_from_clientsecrets
+from oauth2client.file import Storage
+from oauth2client.tools import run_flow
+from types import SimpleNamespace
 
 
 if not os.path.exists("/.dockerenv"):
@@ -177,6 +181,21 @@ def generateKey():
     file.close()
 
 
+def youtube_reauth():
+    flow = flow_from_clientsecrets(
+        "data/client_secrets.json",
+        scope="https://www.googleapis.com/auth/youtube.upload",
+    )
+    storage = Storage("data/oauth2.json")
+    ip = SimpleNamespace(
+        auth_host_name="localhost",
+        auth_host_port=[8080, 8090],
+        logging_level="ERROR",
+        noauth_local_webserver=False,
+    )
+    run_flow(flow, storage, ip)
+ 
+
 # Generate process folder in Docker container
 if "process" not in os.listdir():
     os.mkdir("process")
@@ -314,6 +333,13 @@ if __name__ == "__main__":
         default=False,
         help="Create new API key",
     )
+    parser.add_argument(
+            "-auth",
+            action="store_true",
+            dest="auth",
+            default=False,
+            help="Reauthenticate with Google OAuth2 for Youtube"
+    )
     results = parser.parse_args()
     if results.auto:
         # Setup local data cache
@@ -327,5 +353,7 @@ if __name__ == "__main__":
     elif results.gen:
         generateKey()
         exit()
+    elif results.auth:
+        youtube_reauth()
     else:
         exit("Please pass in a valid mode of operation! Run -h for instruction.")

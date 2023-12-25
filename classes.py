@@ -37,7 +37,6 @@ class Sermon:
     # video: current location of video file
     # filename: final pretty filename, ends in mp. Tack on 3 or 4
 
-
     # Initialize sermon and fetch pertinent info
     def __init__(self, payload):
         self.date = payload["date"]
@@ -179,7 +178,7 @@ class Sermon:
                     self.videoId = video["videoId"]
         # Download with yt_dlp
         ydl_opts = {
-            "format": "best",
+            "format": "bv*[ext=mp4]+ba[ext=m4a]/b[ext=mp4]",
             "outtmpl": "process/%(title)s" + ".mp4",
             "quiet": True,
         }
@@ -212,14 +211,12 @@ class Sermon:
                     "-y",
                     "-i",
                     self.rawVideo,
+                    "-c",
+                    "copy",
                     "-ss",
                     start,
                     "-to",
                     end,
-                    "-async",
-                    "1",
-                    "-strict",
-                    "-2",
                     (self.filename + "4"),
                 ],
                 stdout=subprocess.PIPE,
@@ -277,13 +274,7 @@ class Sermon:
         spinner.start()
         try:
             subprocess.run(
-                [
-                    "ffmpeg",
-                    "-y",
-                    "-i",
-                    self.video,
-                    "process/audio.mp3"
-                ],
+                ["ffmpeg", "-y", "-i", self.video, "process/audio.mp3"],
                 stdout=subprocess.PIPE,
                 stderr=subprocess.STDOUT,
             )
