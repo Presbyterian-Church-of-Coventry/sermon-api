@@ -10,14 +10,12 @@ Generate an API key with
 
 ```
 python3 main.py -key
-
 ```
 
 Then run the API with
 
 ```
 python3 main.py -a
-
 ```
 
 You can find an example of a frontend for the API we actually use in [upload.vue](examples/Upload.vue). I'd recommend pulling the Docker image from coventrypca/sermon-api:latest, or you could clone this repository and build it yourself with `docker build .`
