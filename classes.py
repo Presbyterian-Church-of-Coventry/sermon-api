@@ -63,32 +63,43 @@ class Sermon:
             self.make()
 
     def make(self):
-        link = requests.get("https://coventrypca.church/bulletins")
-        html = str(link.text)
-        soup = BeautifulSoup(html, "html.parser")
-        links = []
-        for ref in soup.find_all("a"):
-            if ref.get("href")[:25] == "https://s3.wasabisys.com/":
-                links.append(ref.get("href"))
-        pdf_url = None
-        # Grab bulletin for specific date:
-        for link in links:
-            if self.date in link:
-                pdf_url = link
-        if not pdf_url:
-            print(
-                Fore.RED
-                + "Can't find bulletin online! Won't fetch metadata."
-                + Fore.RESET
+    pdf_url = None
+    response = requests.get(
+        "https://coventrypca.church/assets/data/bulletins/index.json"
+    )
+    json = response.json()
+    bulletins = json["data"]["bulletins"]["edges"]
+    # Grab bulletin for specific date:
+    for bulletin in bulletins:
+        link = bulletin["node"]["url"]
+        if self.date in link:
+            pdf_url = link
+            break
+    if not pdf_url:
+        num = 2
+        while not pdf_url:
+            response = requests.get(
+                f"https://coventrypca.church/assets/data/bulletins/{num}/index.json"
             )
-            return
+            if response.status_code == 404:
+                print("Can't find bulletin online!")
+                return
+            json = response.json()
+            bulletins = json["data"]["bulletins"]["edges"]
+            # Grab bulletin for specific date:
+            for bulletin in bulletins:
+                link = bulletin["node"]["url"]
+                if self.date in link:
+                    pdf_url = link
+                    break
+            num += 1
         # Download selected bulletin locally:
         pdf = requests.get(pdf_url)
         pdf_name = str(pdf_url[-23:])
         open("process/" + pdf_name, "wb").write(pdf.content)
         pdf_path = "process/" + pdf_name
         # Grab needed data from bulletin:
-        text = extract_text(pdf_path, page_numbers=0)
+        text = extract_text(pdf_path, page_numbers=[0])
         text = text.replace("\n", " ").replace("\r", "")
         splitted = re.split("Sermon", text)
         final = re.split("Bible", splitted[1])

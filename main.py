@@ -138,17 +138,39 @@ def getSeries():
 
 
 def getSermons():
+    # Get Bulletins
     link = requests.get("https://coventrypca.church/bulletins")
     html = str(link.text)
     soup = BeautifulSoup(html, "html.parser")
-    dates = dict()
+    bulletins = dict()
     for ref in soup.find_all("a"):
         if ref.get("href")[:25] == "https://s3.wasabisys.com/":
             date = ref.find_all("span")[0].text
             date_int = datetime.strftime(parse(date), "%Y-%m-%d")
-            dates[date] = date_int
+            bulletins[date] = date_int
+    # Get Sermons
+    link = requests.get("https://coventrypca.church/sermons")
+    html = str(link.text)
+    soup = BeautifulSoup(html, "html.parser")
+    dates = dict()
+    for ref in soup.find_all(
+        "span",
+        {
+            "class": "text-xs tracking-wider font-bold bg-gray-700 text-gray-100 uppercase rounded-full px-2 py-1"
+        },
+    ):
+        date = ref.text
+        date_int = datetime.strftime(parse(date), "%Y-%m-%d")
+        dates[date] = date_int
+    bulletin_dates = bulletins.values()
+    sermons = dict()
+    print(bulletin_dates)
+    for sermon in dates.items():
+        print(sermon[1] + "   " + sermon[0])
+        if bulletin_dates[sermon[1]]:
+            sermons[sermon[0]] = sermon[1]
     with open("data/sermons.txt", "w") as f:
-        f.write(str(dates))
+        f.write(str(sermons))
         f.close()
 
 
