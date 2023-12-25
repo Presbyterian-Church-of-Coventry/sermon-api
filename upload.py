@@ -1,6 +1,5 @@
 import os
 import boto3
-from halo import Halo
 from time import sleep
 from git.repo import Repo
 from git.util import Actor
@@ -17,10 +16,16 @@ from sermonaudio.broadcaster.requests import Broadcaster
 
 load_dotenv()
 
+
+def log(msg):
+    print(msg, end=" ")
+    with open("logs/app.log", "a") as f:
+        f.write(msg)
+
+
 # Upload sermon markdown to Git and thus website
 def git(title, text, speaker, series, date, audio, video):
-    spinner = Halo(text="Uploading to Git", spinner="dots", color="red")
-    spinner.start()
+    log("Uploading to Git...")
     try:
         # Needed stuff
         repo_url = os.environ["REPO_URL"]
@@ -86,15 +91,14 @@ audio: {audio}
         origin.push()
         # Clean up for next time
         os.system("rm -rf " + repo_path)
-        spinner.succeed("Uploaded to Git!")
+        log("✅\n")
     except:
-        spinner.fail("Git upload failed!")
+        log("❌\n")
 
 
 # Upload audio to Wasabi:
 def wasabi(file):
-    spinner = Halo(text="Uploading to Wasabi", spinner="dots", color="green")
-    spinner.start()
+    log("Uploading to Wasabi...")
     try:
         api = os.environ["S3_ACCESS_KEY"]
         secret = os.environ["S3_SECRET"]
@@ -113,18 +117,17 @@ def wasabi(file):
             f"sermons/{file.split('/')[-1]}",
             ExtraArgs={"ContentType": "audio/mpeg", "ContentDisposition": "inline"},
         )
-        spinner.succeed("Uploaded to Wasabi!")
+        log("✅\n")
         return (
             "https://s3.wasabisys.com/coventrypca.church/sermons/" + file.split("/")[-1]
         )
     except:
-        spinner.fail("Wasabi upload failed!")
+        log("❌\n")
 
 
 # Upload audio to SermonAudio
 def sermonaudio(file, title, series, text, speaker, date):
-    spinner = Halo(text="Uploading to SermonAudio", spinner="dots", color="grey")
-    spinner.start()
+    log("Uploading to SermonAudio...")
     try:
         # Set API Key
         sapy.set_api_key(os.environ["SA_API_KEY"])
@@ -146,16 +149,15 @@ def sermonaudio(file, title, series, text, speaker, date):
         ).sermon_id  # Get id for the sermon created
         # Upload file
         Broadcaster._upload_media("original-audio", id, file)
-        spinner.succeed("Uploaded to SermonAudio!")
+        log("✅\n")
         return id
     except:
-        spinner.fail("SermonAudio upload failed!")
+        log("❌\n")
 
 
 # Youtube upload function: Bit of a mess, but it works so I'm not complaining! This took ages to figure out.
 def youtube(file, title, text, speaker, date):
-    spinner = Halo(text="Uploading to Youtube", spinner="dots", color="red")
-    spinner.start()
+    log("Uploading to Youtube...")
     try:
         response = None
         error = None
@@ -215,13 +217,11 @@ def youtube(file, title, text, speaker, date):
                 if response is not None:
                     if "id" in response[1]:
                         video_id = response[1]["id"]
-                        spinner.succeed("Uploaded to Youtube!")
+                        log("✅\n")
                         return "https://youtu.be/" + video_id
                     else:
-                        spinner.fail(
-                            "Youtube upload failed with an unexpected response: "
-                            + str(response)
-                        )
+                        log("❌\n")
+                        log(str(response) + "\n")
                         return False
             except:
                 error = "exists"
@@ -230,9 +230,10 @@ def youtube(file, title, text, speaker, date):
             if error is not None:
                 retry += 1
                 if retry > 10:
-                    spinner.fail("Youtube upload failed!")
+                    log("❌\n")
+                    log(str(error) + "\n")
                     return False
             max_sleep = 2**retry
             sleep(max_sleep)
     except:
-        spinner.fail("Youtube upload failed!")
+        log("❌\n")

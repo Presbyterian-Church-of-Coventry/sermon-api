@@ -1,25 +1,27 @@
 import os
 import re
 import time
-import file_globals
 import upload
 import requests
-import logging
 import scrapetube
 import subprocess
 from yt_dlp import YoutubeDL
 from datetime import datetime
-from bs4 import BeautifulSoup
 from pydub import AudioSegment
-from pdfminer.high_level import extract_text
-from colorama import Fore
 from dotenv import load_dotenv
-from halo import Halo
+from dateutil.parser import parse
+from pdfminer.high_level import extract_text
 
 
 if not os.path.exists("/.dockerenv"):
     # Load enviroment variables from .env if it exists
     load_dotenv()
+
+
+def log(msg):
+    print(msg, end=" ")
+    with open("logs/app.log", "a") as f:
+        f.write(msg)
 
 
 class Sermon:
@@ -63,36 +65,36 @@ class Sermon:
             self.make()
 
     def make(self):
-    pdf_url = None
-    response = requests.get(
-        "https://coventrypca.church/assets/data/bulletins/index.json"
-    )
-    json = response.json()
-    bulletins = json["data"]["bulletins"]["edges"]
-    # Grab bulletin for specific date:
-    for bulletin in bulletins:
-        link = bulletin["node"]["url"]
-        if self.date in link:
-            pdf_url = link
-            break
-    if not pdf_url:
-        num = 2
-        while not pdf_url:
-            response = requests.get(
-                f"https://coventrypca.church/assets/data/bulletins/{num}/index.json"
-            )
-            if response.status_code == 404:
-                print("Can't find bulletin online!")
-                return
-            json = response.json()
-            bulletins = json["data"]["bulletins"]["edges"]
-            # Grab bulletin for specific date:
-            for bulletin in bulletins:
-                link = bulletin["node"]["url"]
-                if self.date in link:
-                    pdf_url = link
-                    break
-            num += 1
+        pdf_url = None
+        response = requests.get(
+            "https://coventrypca.church/assets/data/bulletins/index.json"
+        )
+        json = response.json()
+        bulletins = json["data"]["bulletins"]["edges"]
+        # Grab bulletin for specific date:
+        for bulletin in bulletins:
+            link = bulletin["node"]["url"]
+            if self.date in link:
+                pdf_url = link
+                break
+        if not pdf_url:
+            num = 2
+            while not pdf_url:
+                response = requests.get(
+                    f"https://coventrypca.church/assets/data/bulletins/{num}/index.json"
+                )
+                if response.status_code == 404:
+                    log("Can't find bulletin online!\n")
+                    return
+                json = response.json()
+                bulletins = json["data"]["bulletins"]["edges"]
+                # Grab bulletin for specific date:
+                for bulletin in bulletins:
+                    link = bulletin["node"]["url"]
+                    if self.date in link:
+                        pdf_url = link
+                        break
+                num += 1
         # Download selected bulletin locally:
         pdf = requests.get(pdf_url)
         pdf_name = str(pdf_url[-23:])
@@ -112,7 +114,7 @@ class Sermon:
         os.remove(pdf_path)
         # Find livestream if possible
         channel_id = os.environ["CHANNEL_ID"]
-        videos = scrapetube.get_channel(channel_id, "", 20, 1, "newest", "streams")
+        videos = scrapetube.get_channel(channel_id, "", 52, 1, "newest", "streams")
         date_obj = datetime.strptime(self.date, "%Y-%m-%d")
         M_D_YY = " " + date_obj.strftime("%-m/%-d/%y")
         self.videoId = None
@@ -126,42 +128,33 @@ class Sermon:
     # Informative functions
     def isUploaded(self):
         try:
-            link = requests.get("https://coventrypca.church/sermons/all")
-            html = str(link.text)
-            soup = BeautifulSoup(html, "html.parser")
-            dates = []
-            messy_dates = soup.find_all(
-                attrs={
-                    "class": "text-xs tracking-wider font-bold bg-gray-700 text-gray-100 uppercase rounded-full px-2 py-1"
-                }
+            sermons = []
+            response = requests.get(
+                "https://coventrypca.church/assets/data/sermons/all/index.json"
             )
-            for messy_date in messy_dates:
-                messy_date = messy_date.text
-                months = [
-                    "January",
-                    "Febuary",
-                    "March",
-                    "April",
-                    "May",
-                    "June",
-                    "July",
-                    "August",
-                    "September",
-                    "October",
-                    "November",
-                    "December",
-                ]
-                month = str(months.index(messy_date.split(" ")[0]) + 1)
-                year = messy_date[-4:]
-                day = messy_date[:-6][-2:]
-                if len(day) == 1:
-                    day = "0" + day
-                if len(month) == 1:
-                    month = "0" + month
-                dates.append(year + "-" + month + "-" + day)
+            json = response.json()
+            sermons_raw = json["data"]["sermons"]["edges"]
+            # Grab bulletin for specific date:
+            for sermon in sermons_raw:
+                date = sermon["node"]["date"]
+                date_int = datetime.strftime(parse(date), "%Y-%m-%d")
+                sermons.append(date_int)
+            num = 2
+            while response.status_code != 404:
+                response = requests.get(
+                    f"https://coventrypca.church/assets/data/sermons/all/{num}/index.json"
+                )
+                json = response.json()
+                sermons_raw = json["data"]["bulletins"]["edges"]
+                # Grab bulletin for specific date:
+                for sermon in sermons_raw:
+                    date = sermon["node"]["date"]
+                    date_int = datetime.strftime(parse(date), "%Y-%m-%d")
+                    sermons.append(date_int)
+                num += 1
         except:
-            dates = []
-        if self.date in dates:
+            sermons = []
+        if self.date in sermons:
             self.uploaded = True
             return True
         else:
@@ -174,7 +167,7 @@ class Sermon:
             "process/"
             + self.date.replace("-", ".")
             + ".A "
-            + ((self.title).replace("/", "-"))
+            + str(self.title).replace("/", "-")
             + " - "
             + self.speaker
             + ".mp"
@@ -193,24 +186,22 @@ class Sermon:
             "outtmpl": "process/%(title)s" + ".mp4",
             "quiet": True,
         }
-        video = "https://www.youtube.com/watch?v=" + self.videoId
+        video = "https://www.youtube.com/watch?v=" + str(self.videoId)
         with YoutubeDL(ydl_opts) as ydl:
-            spinner = Halo(text="Downloading livestream", spinner="dots", color="red")
-            spinner.start()
+            log("Downloading livestream...")
             info_dict = ydl.extract_info(video, download=True)
             self.rawVideo = (
                 "process/" + (info_dict.get("title", None)).replace("/", "_") + ".mp4"
             )
             self.videoLength = info_dict.get("duration")
-            spinner.succeed("Video succcssfully downloaded!")
+            log("✅\n")
         if self.start and self.end:
             self.trimVideo()
         else:
             self.video = self.rawVideo
 
     def trimVideo(self):
-        spinner = Halo(text="Trimming livestream", spinner="dots", color="blue")
-        spinner.start()
+        log("Trimming livestream...")
         try:
             os.rename(self.rawVideo, "process/video.mp4")
             self.rawVideo = "process/video.mp4"
@@ -235,16 +226,15 @@ class Sermon:
             )
             os.remove(self.rawVideo)
             self.video = self.filename + "4"
-            spinner.succeed("Video trimmed!")
+            log("✅\n")
         except:
-            spinner.fail("Video trimming failed!")
+            log("❌\n")
 
     def processAudio(self):
         # Run noisereduction on provided file:
         if not self.audio:
             return ValueError
-        spinner = Halo(text="Applying noise reduction", spinner="dots", color="blue")
-        spinner.start()
+        log("Applying noise reduction...")
         try:
             sound = AudioSegment.from_mp3(self.audio)
             sound = sound.set_channels(1)
@@ -269,38 +259,35 @@ class Sermon:
                 stdout=subprocess.PIPE,
                 stderr=subprocess.STDOUT,
             )
-            # data/noisereducer -i process/reduce.wav -o process/denoised.wav -p data/noise.wav --noiseGain 12 --sensitivity 6 --smoothing 3
             new_sound = AudioSegment.from_wav("process/denoised.wav")
             self.audio = self.filename + "3"
             new_sound.export(self.audio, format="mp3", codec="libmp3lame")
             os.remove("process/denoised.wav")
             os.remove("process/reduce.wav")
             os.remove(original)
-            spinner.succeed("Noise reduced!")
+            log("✅\n")
         except:
-            spinner.fail("Noise reduction failed!")
+            log("❌\n")
 
     def videoToAudio(self):
-        spinner = Halo(text="Converting video to audio", spinner="dots", color="blue")
-        spinner.start()
+        log("Converting video to audio...")
         try:
             subprocess.run(
-                ["ffmpeg", "-y", "-i", self.video, "process/audio.mp3"],
+                ["ffmpeg", "-y", "-i", str(self.video), "process/audio.mp3"],
                 stdout=subprocess.PIPE,
                 stderr=subprocess.STDOUT,
             )
             self.audio = "process/audio.mp3"
-            spinner.succeed(f"Converted video to {self.audio}!")
+            log("✅\n")
         except:
-            spinner.fail("Video to audio conversion failed!")
+            log("❌\n")
 
     def upload(self):
-        file_globals.setStatus("processing")
         self.download()
         self.videoToAudio()
         self.processAudio()
         # Youtube Upload:
-        if os.path.exists(self.video):
+        if os.path.exists(str(self.video)):
             video = upload.youtube(
                 self.video, self.title, self.text, self.speaker, self.date
             )
@@ -322,8 +309,8 @@ class Sermon:
                 audio,
                 video,
             )
-            os.remove(self.video)
-            os.remove(self.audio)
+            # os.remove(self.video)
+            os.remove(str(self.audio))
             print("Upload successful!")
             file_globals.setStatus("success")
             return

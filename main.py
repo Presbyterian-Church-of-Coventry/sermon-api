@@ -12,11 +12,10 @@ import os
 import sys
 import json
 import time
-import file_globals
-import argparse
-import requests
 import string
 import random
+import argparse
+import requests
 import threading
 from time import sleep
 from datetime import datetime
@@ -25,10 +24,8 @@ from datetime import datetime
 import classes
 import git
 from pyfiglet import Figlet
-from bs4 import BeautifulSoup
 from dateutil.parser import parse
 from colorama import Fore, Style
-from halo import Halo
 from flask import Flask, request, jsonify
 from flask_cors import CORS
 from dotenv import load_dotenv
@@ -41,6 +38,12 @@ from types import SimpleNamespace
 if not os.path.exists("/.dockerenv"):
     # Load enviroment variables from .env if it exists
     load_dotenv()
+
+# Barebones logging thingie
+def log(msg):
+    print(msg, end=" ")
+    with open("logs/app.log", "a") as f:
+        f.write(msg)
 
 
 # Setup the things
@@ -119,19 +122,15 @@ def getSpeakers():
 
 
 def getSeries():
-    # Needed stuff
-    repo_url = os.environ["REPO_URL"]
-    repo_path = repo_url.split("/")[-1]
-    # Remove existing repo if it still exists instead of risking a pull
-    os.system("rm -rf " + repo_path)
-    # Clone repo from remote
-    git.Repo.clone_from(repo_url, repo_path)
-    seriess = os.listdir(repo_path + "/content/series")
+    response = requests.get(
+        "https://coventrypca.church/assets/data/sermons/series/index.json"
+    )
+    json = response.json()
+    serieses = json["data"]["series"]["edges"]
     series = []
-    for serie in seriess:
-        series.append(serie[:-3].replace("-", " ").title())
-    # Clean up for next time
-    os.system("rm -rf " + repo_path)
+    for item in serieses:
+        title = item["node"]["title"]
+        series.append(title)
     with open("data/series.txt", "w") as f:
         f.write(str(series))
         f.close()
@@ -139,55 +138,81 @@ def getSeries():
 
 def getSermons():
     # Get Bulletins
-    link = requests.get("https://coventrypca.church/bulletins")
-    html = str(link.text)
-    soup = BeautifulSoup(html, "html.parser")
-    bulletins = dict()
-    for ref in soup.find_all("a"):
-        if ref.get("href")[:25] == "https://s3.wasabisys.com/":
-            date = ref.find_all("span")[0].text
-            date_int = datetime.strftime(parse(date), "%Y-%m-%d")
-            bulletins[date] = date_int
+    bulletins = []
+    response = requests.get(
+        "https://coventrypca.church/assets/data/bulletins/index.json"
+    )
+    json = response.json()
+    bulletins_raw = json["data"]["bulletins"]["edges"]
+    # Grab bulletin for specific date:
+    for item in bulletins_raw:
+        date = item["node"]["date"]
+        bulletins.append(date)
+    num = 2
+    while num < 10:
+        response = requests.get(
+            f"https://coventrypca.church/assets/data/bulletins/{num}/index.json"
+        )
+        try:
+            json = response.json()
+        except:
+            break
+        bulletins_raw = json["data"]["bulletins"]["edges"]
+        # Grab bulletin for specific date:
+        for item in bulletins_raw:
+            date = item["node"]["date"]
+            bulletins.append(date)
+        num += 1
     # Get Sermons
-    link = requests.get("https://coventrypca.church/sermons")
-    html = str(link.text)
-    soup = BeautifulSoup(html, "html.parser")
-    dates = dict()
-    for ref in soup.find_all(
-        "span",
-        {
-            "class": "text-xs tracking-wider font-bold bg-gray-700 text-gray-100 uppercase rounded-full px-2 py-1"
-        },
-    ):
-        date = ref.text
-        date_int = datetime.strftime(parse(date), "%Y-%m-%d")
-        dates[date] = date_int
-    bulletin_dates = bulletins.values()
-    sermons = dict()
-    print(bulletin_dates)
-    for sermon in dates.items():
-        print(sermon[1] + "   " + sermon[0])
-        if bulletin_dates[sermon[1]]:
-            sermons[sermon[0]] = sermon[1]
+    sermons = []
+    response = requests.get(
+        "https://coventrypca.church/assets/data/sermons/all/index.json"
+    )
+    json = response.json()
+    sermons_raw = json["data"]["sermons"]["edges"]
+    # Grab bulletin for specific date:
+    for sermon in sermons_raw:
+        date = sermon["node"]["date"]
+        sermons.append(date)
+    num = 2
+    while num < 10:
+        response = requests.get(
+            f"https://coventrypca.church/assets/data/sermons/all/{num}/index.json"
+        )
+        try:
+            json = response.json()
+        except:
+            break
+        sermons_raw = json["data"]["sermons"]["edges"]
+        # Grab bulletin for specific date:
+        for sermon in sermons_raw:
+            date = sermon["node"]["date"]
+            sermons.append(date)
+        num += 1
+    final = dict()
+    for bulletin in bulletins:
+        if not bulletin in sermons:
+            date_int = datetime.strftime(parse(bulletin), "%Y-%m-%d")
+            final[bulletin] = date_int
     with open("data/sermons.txt", "w") as f:
-        f.write(str(sermons))
+        f.write(str(final))
         f.close()
 
 
 # Refresh local data
 def refreshData():
-    spinner = Halo(text="Fetching latest data", spinner="dots", color="blue")
-    spinner.start()
+    log("Fetching latest data...")
     getSermons()
     getSeries()
     getSpeakers()
-    spinner.succeed("Data fetched!")
+    log("✅\n")
+    open("logs/app.log", "w")
 
 
 # Generate random API key
 def generateKey():
     rand = []
-    for i in range(12):
+    for _ in range(12):
         rand.append(random.choice(string.ascii_letters + string.digits + string.digits))
     rand.insert(4, "-")
     rand.insert(9, "-")
@@ -263,33 +288,36 @@ def get_sermon(sermon_date):
     }, 200
 
 
+last_refresh = round(time.time())
+
 # Refresh local data route; check for new sermons and speakers and series
 @app.route("/pcc/v1/refresh", methods=["POST"])
 def refresh():
     # Check last time this route was called
-    last_refresh = file_globals.getLastRefresh()
+    global last_refresh
     if last_refresh < round(time.time()) - 60:
-        file_globals.setLastRefresh(round(time.time()))
-        print("API called to get refresh data lists")
+        last_refresh = round(time.time())
+        log("API called to get refresh data lists\n")
         # Offload data feching to another thread and wait for it to finish before response
         refresh_thread = threading.Thread(target=refreshData)
         refresh_thread.start()
         refresh_thread.join()
         return "success"
     else:
-        print("Refresh called too soon after most recent refresh")
+        log("Refresh called too soon after most recent refresh\n")
         return "already refreshed data in the last 60 seconds"
 
 
 @app.route("/pcc/v1/status", methods=["GET"])
 def get_status():
-    if file_globals.getStatus() == "success":
-        if status_calls < 9:
-            status_calls = 0
-            file_globals.setStatus("idle")
-        else:
-            status_calls += 1
-    return file_globals.getStatus()
+    with open("logs/app.log", "r") as f:
+        logs = f.readlines()
+    if logs:
+        for num, log in enumerate(logs):
+            logs[num] = log.replace("\n", "")
+        return jsonify(json.loads(str(logs).replace("\n", ""))), 200
+    else:
+        return "no logs"
 
 
 # Sermon upload route
@@ -302,7 +330,7 @@ def posted():
     if key in api_keys:
         try:
             sermon = classes.Sermon(args)
-            print("API called to upload " + args["date"] + ":")
+            log("Uploading sermon for " + args["date"] + ":\n")
             if sermon.isUploaded() == True:
                 return "Error! Sermon already uploaded."
             else:
@@ -313,6 +341,7 @@ def posted():
         except:
             return "Upload POST failed!"
     else:
+        log("Invalid API key used!")
         return "Invalid API Key!"
 
 
