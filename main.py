@@ -7,33 +7,31 @@
 # Started by Benjamin Bassett on 11/5/21
 #
 
-# Pretty pedestrian modules:
-import os
-import sys
-import json
-import time
-import string
-import random
 import argparse
-import requests
+import json
+import os
+import random
+import string
+import sys
 import threading
-from time import sleep
+import time
 from datetime import datetime
+from time import sleep
+from types import SimpleNamespace
 
-# More obscure:
-import classes
 import git
-from pyfiglet import Figlet
-from dateutil.parser import parse
+import requests
 from colorama import Fore, Style
-from flask import Flask, request, jsonify
-from flask_cors import CORS
+from dateutil.parser import parse
 from dotenv import load_dotenv
+from flask import Flask, jsonify, request
+from flask_cors import CORS
 from oauth2client.client import flow_from_clientsecrets
 from oauth2client.file import Storage
 from oauth2client.tools import run_flow
-from types import SimpleNamespace
+from pyfiglet import Figlet
 
+import classes
 
 if not os.path.exists("/.dockerenv"):
     # Load enviroment variables from .env if it exists

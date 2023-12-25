@@ -1,17 +1,18 @@
 import os
 import re
-import time
-import upload
-import requests
-import scrapetube
 import subprocess
-from yt_dlp import YoutubeDL
+import time
 from datetime import datetime
-from pydub import AudioSegment
-from dotenv import load_dotenv
-from dateutil.parser import parse
-from pdfminer.high_level import extract_text
 
+import requests
+from dateutil.parser import parse
+from dotenv import load_dotenv
+from pdfminer.high_level import extract_text
+from pydub import AudioSegment
+from yt_dlp import YoutubeDL
+
+import scrapetube
+import upload
 
 if not os.path.exists("/.dockerenv"):
     # Load enviroment variables from .env if it exists
