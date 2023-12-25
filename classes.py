@@ -51,6 +51,9 @@ class Sermon:
             self.start = payload["value"][0]
             self.end = payload["value"][1]
             self.videoId = payload["videoId"]
+            self.sermonAudio = payload["sermonAudio"]
+            self.youtube = payload["youtube"]
+            self.website = payload["website"]
         except:
             self.title = None
             self.speaker = None
@@ -59,6 +62,9 @@ class Sermon:
             self.start = None
             self.end = None
             self.videoId = None
+            self.sermonAudio = False
+            self.youtube = False
+            self.website = False
             pass
         self.audio = None
         self.video = None
@@ -285,37 +291,45 @@ class Sermon:
 
     def upload(self):
         self.download()
-        self.videoToAudio()
-        self.processAudio()
+        if self.sermonAudio or self.website:
+            self.videoToAudio()
+            self.processAudio()
         # Youtube Upload:
         if os.path.exists(str(self.video)):
-            video = upload.youtube(
-                self.video, self.title, self.text, self.speaker, self.date
-            )
-            pass
+            if self.youtube:
+                video = upload.youtube(
+                    self.video, self.title, self.text, self.speaker, self.date
+                )
+            else:
+                video = None
         else:
             video = None
-            print("No matching video file found, will not upload to Youtube.")
+            log("No matching video file found, will not upload to Youtube.\n")
         try:
-            upload.sermonaudio(
-                self.audio, self.title, self.series, self.text, self.speaker, self.date
-            )
-            audio = upload.wasabi(self.audio)
-            upload.git(
-                self.title,
-                self.text,
-                self.speaker,
-                self.series,
-                self.date,
-                audio,
-                video,
-            )
-            # os.remove(self.video)
+            if self.sermonAudio:
+                upload.sermonaudio(
+                    self.audio,
+                    self.title,
+                    self.series,
+                    self.text,
+                    self.speaker,
+                    self.date,
+                )
+            if self.website:
+                audio = upload.wasabi(self.audio)
+                upload.git(
+                    self.title,
+                    self.text,
+                    self.speaker,
+                    self.series,
+                    self.date,
+                    audio,
+                    video,
+                )
+            os.remove(str(self.video))
             os.remove(str(self.audio))
-            print("Upload successful!")
-            file_globals.setStatus("success")
+            log("Upload successful!\n")
             return
         except:
-            logging.warn("Upload failed! Stopping")
-            file_globals.setStatus("failed")
+            log("Upload failed! Stopping\n")
             return EnvironmentError
