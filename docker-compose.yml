@@ -1,0 +1,18 @@
+version: 3
+services:
+  sermonupload:
+    image: coventrypca/sermon-api:latest
+    container_name: Sermons
+    ports:
+      - "3167:3167"
+    environment:
+      - CHANNEL_ID=
+      - SA_API_KEY=
+      - S3_ACCESS_KEY=
+      - S3_SECRET=
+      - YT_CLIENT_ID=
+      - YT_CLIENT_SECRET=
+      - REPO_URL=
+      - GIT_USER=
+      - GIT_PASS=
+    restart: unless-stopped
