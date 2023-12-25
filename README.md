@@ -12,9 +12,9 @@ Then run the API with
 
 `python3 main.py -a`
 
-You can find an example of a frontend for the API we actually use in [Upload.vue](Upload.vue). I'd recommend pulling the Docker image from coventrypca/sermonupload:latest, or you could clone this repository and build it yourself with `docker build .`
+You can find an example of a frontend for the API we actually use in [upload.vue](examples/Upload.vue). I'd recommend pulling the Docker image from coventrypca/sermon-api:latest, or you could clone this repository and build it yourself with `docker build .`
 
-However, one thing not currently implemented for variable supply is Google's refresh token, which is a pain to get ahold of. As I'm unaware of the IP this script is being run from, you can only authenticate it on your local machine. So until I can figure out a better solution, you need to supply at least the client ID and secret for Google, then run the Youtube upload function and follow the link it gets you. Follow the steps there and the script should automatically create an oauth2.json file in your `data` directory. You can then build the Docker image for your own use with this important file in place with `docker build .`. Or simply bind `data/oauth2.json` to somewhere on your local file system and fill the file in that way.
+However, one thing not currently implemented for variable supply is Google's refresh token, which is a pain to get ahold of. As I'm unaware of the IP this script is being run from, you can only authenticate it on your local machine. So until I can figure out a better solution, you need to supply at least the client ID and secret for Google, then run the Youtube upload function and follow the link it gets you. Follow the steps there and the script should automatically create an oauth2.json file in your `data` directory. You can then build the Docker image for your own use with this important file in place with `docker build .` or simply bind `data/oauth2.json` to somewhere on your local file system to modify the file.
 
 If you would like to run the API on bare metal, rename `.env_example` to `.env` and fill the variables in there, then run `python3 main.py -a`.
 
@@ -30,13 +30,16 @@ Use the [Docker Compose File](docker-compose.yml) as a guide for filling in all 
 | CHANNEL_ID       | Supply the _ID_ of the channel you would like to scrape for latest video to scrub through on the web interface.                      |
 | REPO_URL         | Put the HTTPS URL for your Git repository here, where a markdown file will be made to upload                                         |
 | GIT_USER         | Put your Git username here                                                                                                           |
-| GIT_PASS         | And your Git password here. No special characters or things will break.                                                              |
+| GIT_PASS         | Personal Access Token or password for your Git provider. If using Github you can obtain one [here](https://github.com/settings/tokens/new)                    |
 
-Enjoy! If anyone else ever tries to use it it'll need to be customized a great deal, but some basic functionality should be implemented. Shoot me a message if you have any problems, although the only person who will probably have any issues will be me ;)
+Enjoy! If anyone else ever tries to use this it'll need to be customized a great deal, but the upload pipelines should be ironed out at the very least. Shoot me a message if you have any problems, although the only person who will probably have any issues will be me ;)
 
 Todo:
 
-- [ ] Fix creation of oauth2.json and find simpler way to get refresh token. Maybe automatically?
+- [ ] Fix creation of `oauth2.json` and find simpler way to get refresh token. Maybe automatically?
+- [ ] Allow manually specifying video ID in API requests
+- [ ] Improve `/status` endpoint, maybe just pipe `STDOUT` there?
+- [ ] Improve documentation and comments for future maintainers
 
 Pie in the sky:
 
