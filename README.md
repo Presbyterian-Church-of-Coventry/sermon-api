@@ -2,42 +2,55 @@
 
 If you would like to run the uploading scripts manually, you can clone this repo, `cd` into the directory, and
 
-`pip3 install -r requirements.txt`
+```
+pip3 install -r requirements.txt
+```
 
 Generate an API key with
 
-`python3 main.py -key`
+```
+python3 main.py -key
+
+```
 
 Then run the API with
 
-`python3 main.py -a`
+```
+python3 main.py -a
+
+```
 
 You can find an example of a frontend for the API we actually use in [upload.vue](examples/Upload.vue). I'd recommend pulling the Docker image from coventrypca/sermon-api:latest, or you could clone this repository and build it yourself with `docker build .`
 
-However, one thing not currently implemented for variable supply is Google's refresh token, which is a pain to get ahold of. As I'm unaware of the IP this script is being run from, you can only authenticate it on your local machine. So until I can figure out a better solution, you need to supply at least the client ID and secret for Google, then run the Youtube upload function and follow the link it gets you. Follow the steps there and the script should automatically create an oauth2.json file in your `data` directory. You can then build the Docker image for your own use with this important file in place with `docker build .` or simply bind `data/oauth2.json` to somewhere on your local file system to modify the file.
+To authenticate with Google and upload to Youtube, you'll need to generate OAuth2 credentials [here](https://console.cloud.google.com/projectcreate) with Youtube API access. Download the `client_secrets.json` file and bind the file to `/app/data/client_secrets.json`. First, though, you must run
+
+```
+python3 main.py -auth
+```
+
+with your `client_secrets.json` file in the data directory on your local machine. This will open a webpage where you can authenticate your channel, which will generate an `oauth2.json` file you need to bind to `/app/data/oauth2.json` on your Docker container. This will keep the container permenantly authenticated.
 
 If you would like to run the API on bare metal, rename `.env_example` to `.env` and fill the variables in there, then run `python3 main.py -a`.
 
 Use the [Docker Compose File](docker-compose.yml) as a guide for filling in all the nessecary environment variables. See the chart below for their meanings:
 
-| Env Variable     | Comment                                                                                                                              |
-| ---------------- | ------------------------------------------------------------------------------------------------------------------------------------ |
-| SA_API_KEY       | Your SermonAudio API Key. You can find it by signing in and going [here](https://www.sermonaudio.com/secure/members_stats.asp)       |
-| S3_ACCESS_KEY    | Get your access token for your S3 storage if you have it. If not, don't supply it and this part won't run                            |
-| S3_SECRET        | Same as above, but use your secret token here. You could also use Docker secrets as this is sensitive                                |
-| YT_CLIENT_ID     | The client ID for an OAUTH application you can create [here](https://console.cloud.google.com/projectcreate) with Youtube API access |
-| YT_CLIENT_SECRET | The same thing, but supply the secret token as well                                                                                  |
-| CHANNEL_ID       | Supply the _ID_ of the channel you would like to scrape for latest video to scrub through on the web interface.                      |
-| REPO_URL         | Put the HTTPS URL for your Git repository here, where a markdown file will be made to upload                                         |
-| GIT_USER         | Put your Git username here                                                                                                           |
-| GIT_PASS         | Personal Access Token or password for your Git provider. If using Github you can obtain one [here](https://github.com/settings/tokens/new)                    |
+| Env Variable  | Comment                                                                                                                                    |
+| ------------- | ------------------------------------------------------------------------------------------------------------------------------------------ |
+| SA_API_KEY    | Your SermonAudio API Key. You can find it by signing in and going [here](https://www.sermonaudio.com/secure/members_stats.asp)             |
+| S3_ACCESS_KEY | Get your access token for your S3 storage if you have it. If not, don't supply it and this part won't run                                  |
+| S3_SECRET     | Same as above, but use your secret token here. You could also use Docker secrets as this is sensitive                                      |
+| CHANNEL_ID    | Supply the _ID_ of the channel you would like to scrape for latest video to scrub through on the web interface.                            |
+| REPO_URL      | Put the HTTPS URL for your Git repository here, where a markdown file will be made to upload                                               |
+| GIT_USER      | Put your Git username here                                                                                                                 |
+| GIT_USER      | Put the email you want the committer to use on Git here                                                                                    |
+| GIT_PASS      | Personal Access Token or password for your Git provider. If using Github you can obtain one [here](https://github.com/settings/tokens/new) |
 
 Enjoy! If anyone else ever tries to use this it'll need to be customized a great deal, but the upload pipelines should be ironed out at the very least. Shoot me a message if you have any problems, although the only person who will probably have any issues will be me ;)
 
 Todo:
 
-- [ ] Fix creation of `oauth2.json` and find simpler way to get refresh token. Maybe automatically?
-- [ ] Allow manually specifying video ID in API requests
+- [x] Fix creation of `oauth2.json` and find simpler way to get refresh token. Maybe automatically?
+- [x] Allow manually specifying video ID in API requests
 - [ ] Improve `/status` endpoint, maybe just pipe `STDOUT` there?
 - [ ] Improve documentation and comments for future maintainers
 

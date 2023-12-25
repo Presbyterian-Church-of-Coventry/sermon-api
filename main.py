@@ -78,14 +78,9 @@ def setup(mode):
 
     # Youtube:
     try:
-        with open("data/client_secrets.json", "r+") as f:
+        with open("data/client_secrets.json", "r") as f:
             data = json.load(f)
-            data["web"]["client_id"] = os.environ["YT_CLIENT_ID"]
-            data["web"]["client_secret"] = os.environ["YT_CLIENT_SECRET"]
-            f.seek(0)
-            json.dump(data, f, indent=4)
-            f.truncate()
-            if data["web"]["client_secret"] and data["web"]["client_id"]:
+            if data["installed"]["client_secret"] and data["installed"]["client_id"]:
                 print(Fore.GREEN + "Youtube:     ✅")
             else:
                 print(Fore.RED + "Youtube:     ❌")
@@ -194,7 +189,7 @@ def youtube_reauth():
         noauth_local_webserver=False,
     )
     run_flow(flow, storage, ip)
- 
+
 
 # Generate process folder in Docker container
 if "process" not in os.listdir():
@@ -334,11 +329,11 @@ if __name__ == "__main__":
         help="Create new API key",
     )
     parser.add_argument(
-            "-auth",
-            action="store_true",
-            dest="auth",
-            default=False,
-            help="Reauthenticate with Google OAuth2 for Youtube"
+        "-auth",
+        action="store_true",
+        dest="auth",
+        default=False,
+        help="Reauthenticate with Google OAuth2 for Youtube",
     )
     results = parser.parse_args()
     if results.auto:

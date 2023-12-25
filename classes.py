@@ -170,7 +170,7 @@ class Sermon:
         )
         if not self.videoId:
             channel_id = os.environ["CHANNEL_ID"]
-            videos = scrapetube.get_channel(channel_id, None, 20)
+            videos = scrapetube.get_channel(channel_id, "", 20, 1, "newest", "streams")
             date_obj = datetime.strptime(self.date, "%Y-%m-%d")
             M_D_YY = " " + date_obj.strftime("%-m/%-d/%y")
             for video in videos:
