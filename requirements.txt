@@ -1,5 +1,5 @@
 beautifulsoup4==4.11.1
-boto3==1.20.23
+boto3==1.26.59
 colorama==0.4.4
 Flask==2.0.2
 Flask_Cors==3.0.10
@@ -24,3 +24,5 @@ gunicorn==20.1.0
 typing_extensions==4.3.0
 typing==3.7.4.3
 six==1.16.0
+datetime==5.0
+python-dateutil==2.8.2
