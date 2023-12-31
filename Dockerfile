@@ -14,7 +14,7 @@ WORKDIR /app
 
 COPY . .
 
-RUN pip3 install -r requirements.txt
+RUN pip3 install -r requirements.txt --break-system-packages
 
 RUN apk del gcc libc-dev libffi-dev
 

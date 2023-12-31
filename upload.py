@@ -3,14 +3,15 @@ from datetime import datetime, timedelta
 from time import sleep
 
 import boto3
+import pickle
 import sermonaudio as sapy
 from dotenv import load_dotenv
 from git.repo import Repo
 from git.util import Actor
 from google.auth.transport.requests import Request
 from google.oauth2.credentials import Credentials
-from google_auth_oauthlib.flow import InstalledAppFlow
-from googleapiclient.discovery import build
+import google_auth_oauthlib.flow
+import googleapiclient.discovery
 from googleapiclient.http import MediaFileUpload
 from sermonaudio.broadcaster.requests import Broadcaster
 from sermonaudio.models import SermonEventType
@@ -156,31 +157,33 @@ def sermonaudio(file, title, series, text, speaker, date):
         log("❌\n")
 
 
+def getAuthenticatedService():
+    scopes = ["https://www.googleapis.com/auth/youtube.upload"]
+
+    client_secrets_file = "data/client_secret.json"
+
+    # Check if token.pickle exists, which stores user's access and refresh tokens
+    if os.path.exists("data/token.pickle"):
+        with open("data/token.pickle", "rb") as token:
+            credentials = pickle.load(token)
+    else:
+        # If not, perform OAuth 2.0 authorization flow
+        flow = google_auth_oauthlib.flow.InstalledAppFlow.from_client_secrets_file(client_secrets_file, scopes)
+        credentials = flow.run_console()
+        with open("data/token.pickle", "wb") as token:
+            pickle.dump(credentials, token)
+
+    # Create the YouTube API client
+    return googleapiclient.discovery.build("youtube", "v3", credentials=credentials)
+
+
 # Youtube upload function: Bit of a mess, but it works so I'm not complaining! This took ages to figure out.
-def youtube(file, title, text, speaker, date):
+def youtube(auth, file, title, text, speaker, date):
     log("Uploading to Youtube...")
     try:
         response = None
         error = None
         retry = 0
-        creds = None
-        # Authentication
-        scope = ["https://www.googleapis.com/auth/youtube.upload"]
-        oauth_file = "data/oauth2.json"
-        if os.path.exists(oauth_file):
-            creds = Credentials.from_authorized_user_file(oauth_file, scope)
-        if not creds or not creds.valid:
-            if creds and creds.expired and creds.refresh_token:
-                creds.refresh(Request())
-            else:
-                flow = InstalledAppFlow.from_client_secrets_file(
-                    "data/client_secrets.json", scope
-                )
-                creds = flow.run_local_server(port=8080)
-            # Save the credentials for the next run
-            with open(oauth_file, "w") as token:
-                token.write(creds.to_json())
-        auth = build("youtube", "v3", credentials=creds)
         # Pretty date
         parts = date.split("-")
         pdate = parts[1].lstrip("0") + "/" + parts[2].lstrip("0") + "/" + parts[0][-2:]

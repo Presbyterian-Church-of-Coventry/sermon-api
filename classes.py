@@ -297,8 +297,9 @@ class Sermon:
         # Youtube Upload:
         if os.path.exists(str(self.video)):
             if self.youtube:
+                auth = upload.getAuthenticatedService()
                 video = upload.youtube(
-                    self.video, self.title, self.text, self.speaker, self.date
+                    auth, self.video, self.title, self.text, self.speaker, self.date
                 )
             else:
                 video = None
