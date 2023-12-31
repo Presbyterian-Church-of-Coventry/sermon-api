@@ -2,7 +2,6 @@ boto3==1.20.23
 colorama==0.4.4
 Flask==2.0.2
 Flask_Cors==3.0.10
-GitPython==3.1.27
 GitPython==3.1.40
 google_api_python_client==2.51.0
 google_auth_oauthlib==0.4.6
