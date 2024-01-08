@@ -12,6 +12,8 @@ Generate an API key with
 python3 main.py -key
 ```
 
+or simply edit `data/api.txt`.
+
 Then run the API with
 
 ```
@@ -38,9 +40,5 @@ Use the [Docker Compose File](docker-compose.yml) as a guide for filling in all 
 | S3_ACCESS_KEY | Get your access token for your S3 storage if you have it. If not, don't supply it and this part won't run                                  |
 | S3_SECRET     | Same as above, but use your secret token here. You could also use Docker secrets as this is sensitive                                      |
 | CHANNEL_ID    | Supply the _ID_ of the channel you would like to scrape for latest video to scrub through on the web interface.                            |
-| REPO_URL      | Put the HTTPS URL for your Git repository here, where a markdown file will be made to upload                                               |
-| GIT_USER      | Put your Git username here                                                                                                                 |
-| GIT_EMAIL      | Put the email you want the committer to use on Git here                                                                                   |
-| GIT_PASS      | Personal Access Token or password for your Git provider. If using Github you can obtain one [here](https://github.com/settings/tokens/new) |
 
 Enjoy! If anyone else ever tries to use this it'll need to be customized a great deal, but the upload pipelines should be ironed out at the very least. Shoot me a message if you have any problems, although the only person who will probably have any issues will be me ;)

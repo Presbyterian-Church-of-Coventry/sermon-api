@@ -124,7 +124,7 @@
                             hide-details
                             single-line
                             type="number"
-                            style="width: 60px;"
+                            style="width: 60px"
                             @change="$set(form.value, 0, $event), scrubVideo()"
                           ></v-text-field>
                         </template>
@@ -135,7 +135,7 @@
                             hide-details
                             single-line
                             type="number"
-                            style="width: 60px;"
+                            style="width: 60px"
                             @change="$set(form.value, 1, $event), scrubVideo()"
                           ></v-text-field>
                         </template>
@@ -189,9 +189,7 @@
           color="error"
           @click="reFetch()"
         >
-          <v-icon dark>
-            mdi-alert
-          </v-icon>
+          <v-icon dark> mdi-alert </v-icon>
           Server Unavailable - Reload</v-btn
         >
       </div>
@@ -200,11 +198,11 @@
 </template>
 
 <script type="text/javascript">
-import axios from 'axios'
-import Vue from 'vue'
-import VueYoutube from 'vue-youtube'
+import axios from "axios";
+import Vue from "vue";
+import VueYoutube from "vue-youtube";
 
-Vue.use(VueYoutube)
+Vue.use(VueYoutube);
 
 export default {
   data() {
@@ -231,41 +229,45 @@ export default {
       speakers: [],
       disabled: false,
       uploaded: false,
-    }
+    };
   },
   async created() {
-    this.fetchSermons()
-    this.fetchSeries()
-    this.fetchSpeakers()
+    this.fetchSermons();
+    this.fetchSeries();
+    this.fetchSpeakers();
   },
   methods: {
     async reFetch() {
-      this.loading1 = true
-      this.fetchSermons()
-      this.fetchSeries()
-      this.fetchSpeakers()
-      await new Promise((r) => setTimeout(r, 1000))
-      this.loading1 = false
+      this.loading1 = true;
+      this.fetchSermons();
+      this.fetchSeries();
+      this.fetchSpeakers();
+      await new Promise((r) => setTimeout(r, 1000));
+      this.loading1 = false;
     },
     fetchSermons() {
-      axios.get('https://api.blazenetworking.com/pcc/v1/sermons')
+      axios
+        .get("https://api.blazenetworking.com/pcc/v1/sermons")
         .then((response) => response.data)
-        .then((data) => (this.sermons = data))
+        .then((data) => (this.sermons = data));
     },
     fetchSeries() {
-      axios.get('https://api.blazenetworking.com/pcc/v1/series')
+      axios
+        .get("https://api.blazenetworking.com/pcc/v1/series")
         .then((response) => response.data)
-        .then((data) => (this.series = data))
+        .then((data) => (this.series = data));
     },
     fetchSpeakers() {
-      axios.get('https://api.blazenetworking.com/pcc/v1/speakers')
+      axios
+        .get("https://api.blazenetworking.com/pcc/v1/speakers")
         .then((response) => response.data)
-        .then((data) => (this.speakers = data))
+        .then((data) => (this.speakers = data));
     },
     fetchSermonInfo() {
-      this.loading = true
-      var sermon = this.sermons[this.sermon]
-      axios.get('https://api.blazenetworking.com/pcc/v1/sermon/' + sermon)
+      this.loading = true;
+      var sermon = this.sermons[this.sermon];
+      axios
+        .get("https://api.blazenetworking.com/pcc/v1/sermon/" + sermon)
         .then((response) => response.data)
         .then(
           (data) => (
@@ -274,64 +276,66 @@ export default {
             (this.form.text = data.text),
             (this.form.title = data.title),
             (this.form.videoId = data.videoId),
-            (this.uploaded = data.uploaded)((this.loading = false))
-          )
-        )
+            (this.uploaded = data.uploaded),
+            (this.form.value = [data.guessStart, data.guessEnd]),
+            (this.loading = false)
+          ),
+        );
     },
     async refreshAPI() {
-      this.loading2 = true
+      this.loading2 = true;
       await axios
-        .post('https://api.blazenetworking.com/pcc/v1/refresh')
+        .post("https://api.blazenetworking.com/pcc/v1/refresh")
         .then((res) => {
-          if (res.data == 'success') {
-            alert('API Server checking for new sermon dates to upload!')
+          if (res.data == "success") {
+            alert("API Server checking for new sermon dates to upload!");
           } else {
             alert(
-              'API Server already refreshed its data in the last 60 seconds'
-            )
+              "API Server already refreshed its data in the last 60 seconds",
+            );
           }
         })
         .catch((error) => {
-          alert(error)
-        })
-      this.loading2 = false
+          alert(error);
+        });
+      this.loading2 = false;
     },
     getDuration() {
       return new Promise((resolve) => {
         this.player.getDuration().then((response) => {
-          resolve(response)
-        })
-      })
+          resolve(response);
+        });
+      });
     },
     async playerReady() {
-      var max = await this.player.getDuration()
-      this.sliderMax = max
-      this.form.value = [0, max]
-      this.latestSlide = [0, max]
-      this.player.seekTo(0)
-      this.player.playVideo()
-      this.player.pauseVideo()
+      var max = await this.player.getDuration();
+      this.sliderMax = max;
+      this.form.value = [0, max];
+      this.latestSlide = [0, max];
+      this.player.seekTo(0);
+      this.player.playVideo();
+      this.player.pauseVideo();
     },
     // Scrobbles to wherever slider is
     scrubVideo() {
       if (this.form.value[0] - this.latestSlide[0] != 0) {
-        this.player.seekTo(this.form.value[0])
+        this.player.seekTo(this.form.value[0]);
       } else if (this.form.value[1] - this.latestSlide[1] != 0) {
-        this.player.seekTo(this.form.value[1])
+        this.player.seekTo(this.form.value[1]);
       }
-      this.latestSlide = this.form.value
-      this.player.playVideo()
-      this.player.pauseVideo()
+      this.latestSlide = this.form.value;
+      this.player.playVideo();
+      this.player.pauseVideo();
     },
     async updateSlider() {
-      var time = await this.player.getCurrentTime()
+      var time = await this.player.getCurrentTime();
       if (
         Math.abs(this.form.value[0] - time) >
         Math.abs(this.form.value[1] - time)
       ) {
-        this.form.value = [this.form.value[0], Math.round(time)]
+        this.form.value = [this.form.value[0], Math.round(time)];
       } else {
-        this.form.value = [Math.round(time), this.form.value[1]]
+        this.form.value = [Math.round(time), this.form.value[1]];
       }
     },
     async submitForm(submitEvent) {
@@ -346,21 +350,21 @@ export default {
       ) {
         axios
           .post(
-            'https://api.blazenetworking.com/pcc/v1/upload',
-            JSON.stringify(this.form)
+            "https://api.blazenetworking.com/pcc/v1/upload",
+            JSON.stringify(this.form),
           ) // <-- This link will need to be updated for wherever I put the API endpoints.
           .then((res) => {
-            if (res.data == 'success') {
+            if (res.data == "success") {
               alert(
-                'No immediate problems! Go to /status for further progress.'
-              )
+                "No immediate problems! Go to /status for further progress.",
+              );
             } else {
-              alert(res.data)
+              alert(res.data);
             }
           })
           .catch((error) => {
-            alert(error)
-          })
+            alert(error);
+          });
       }
     },
     clearForm() {
@@ -373,13 +377,13 @@ export default {
         API_Key: null,
         value: [0, this.sliderMax],
         videoId: this.form.videoId,
-      }
+      };
     },
   },
   computed: {
     player() {
-      return this.$refs.youtube.player
+      return this.$refs.youtube.player;
     },
   },
-}
+};
 </script>

@@ -19,7 +19,6 @@ from datetime import datetime
 from time import sleep
 from types import SimpleNamespace
 
-import git
 import requests
 from colorama import Fore, Style
 from dateutil.parser import parse
@@ -101,19 +100,14 @@ def setup(mode):
 
 # Get list of speakers and series to pick from in the Vue frontend
 def getSpeakers():
-    # Needed stuff
-    repo_url = os.environ["REPO_URL"]
-    repo_path = repo_url.split("/")[-1]
-    # Remove existing repo if it still exists instead of risking a pull
-    os.system("rm -rf " + repo_path)
-    # Clone repo from remote
-    git.Repo.clone_from(repo_url, repo_path)
-    speakers = os.listdir(repo_path + "/content/preachers")
+    url = f"https://api.github.com/repos/Presbyterian-Church-of-Coventry/pcc-website/contents/content/preachers"
+    response = requests.get(url)
     preachers = []
-    for speaker in speakers:
-        preachers.append(speaker[:-3].replace("-", " ").title())
-    # Clean up for next time
-    os.system("rm -rf " + repo_path)
+    if response.status_code == 200:
+        content = response.json()
+        for file in content:
+            if file["type"] == "file":
+                preachers.append(file["name"][:-3].replace("-", " ").title())
     with open("data/speakers.txt", "w") as f:
         f.write(str(preachers))
         f.close()
@@ -283,6 +277,8 @@ def get_sermon(sermon_date):
         "date": sermon.date,
         "videoId": sermon.videoId,
         "uploaded": sermon.uploaded,
+        "guessStart": sermon.start,
+        "guessEnd": sermon.end,
     }, 200
 
 
@@ -347,7 +343,7 @@ def posted():
 def serveAPI():
     print(Fore.GREEN + "Started serving API on port 3167!" + Fore.RESET)
     os.system(
-        "gunicorn -b 0.0.0.0:3167 main:app --workers=3 --enable-stdio-inheritance --error-logfile logs/error.log --access-logfile logs/access.log --log-level info -e GIT_PYTHON_GIT_EXECUTABLE=/usr/bin/git"
+        "gunicorn -b 0.0.0.0:3167 main:app --workers=3 --enable-stdio-inheritance --error-logfile logs/error.log --access-logfile logs/access.log --log-level info"
     )
 
 

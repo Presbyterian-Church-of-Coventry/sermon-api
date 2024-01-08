@@ -8,7 +8,7 @@ LABEL description="A Docker container to automatically upload PCC sermons"
 ENV TZ=America/New_York
 
 RUN apk update
-RUN apk add python3-dev py3-pip ffmpeg py3-gunicorn git gcc libc-dev libffi-dev tzdata
+RUN apk add python3-dev py3-pip ffmpeg py3-gunicorn gcc libc-dev libffi-dev tzdata
 
 WORKDIR /app
 

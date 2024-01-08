@@ -3,11 +3,14 @@ import re
 import subprocess
 import time
 from datetime import datetime
+from datetime import timedelta
+
 
 import requests
 from dateutil.parser import parse
 from dotenv import load_dotenv
 from pdfminer.high_level import extract_text
+from youtube_transcript_api import YouTubeTranscriptApi
 from pydub import AudioSegment
 from yt_dlp import YoutubeDL
 
@@ -40,7 +43,7 @@ class Sermon:
     # video: current location of video file
     # filename: final pretty filename, ends in mp. Tack on 3 or 4
 
-    # Initialize sermon and fetch pertinent info
+    # Constructor for initializing a Sermon object
     def __init__(self, payload):
         self.date = payload["date"]
         try:
@@ -55,6 +58,7 @@ class Sermon:
             self.youtube = payload["youtube"]
             self.website = payload["website"]
         except:
+            # Set attributes to None or False if not provided in the payload
             self.title = None
             self.speaker = None
             self.text = None
@@ -68,11 +72,14 @@ class Sermon:
             pass
         self.audio = None
         self.video = None
+        # Create sermon if no title or videoId is provided
         if not self.title or not self.videoId:
             self.make()
 
+    # Method to generate missing sermon information
     def make(self):
         pdf_url = None
+        # Request bulletin data
         response = requests.get(
             "https://coventrypca.church/assets/data/bulletins/index.json"
         )
@@ -132,7 +139,8 @@ class Sermon:
         self.text = passage
         self.speaker = speaker
 
-    # Informative functions
+    # MARK: Info methods
+    # Method to check if the sermon has already been uploaded
     def isUploaded(self):
         try:
             sermons = []
@@ -168,7 +176,77 @@ class Sermon:
             self.uploaded = False
             return False
 
-    # Actions:
+    # Method to estimate the start and end time of the sermon from the transcript
+    def guessTiming(self):
+        if not self.videoId:
+            self.start = "0:20:00"
+            self.end = "0:50:00"
+            return
+        try:
+            transcript = YouTubeTranscriptApi.get_transcript(self.videoId)
+        except Exception:
+            self.start = "0:20:00"
+            self.end = "0:50:00"
+            return
+        if not transcript:
+            self.start = "0:20:00"
+            self.end = "0:50:00"
+            return
+        events = []
+        for i in range(len(transcript) - 1):
+            current_start = timedelta(seconds=transcript[i]["start"])
+            combined_text = transcript[i]["text"] + " " + transcript[i + 1]["text"]
+            events.append((current_start, combined_text))
+        for i in range(len(events) - 1):
+            time, text = events[i]
+            if "amen please be" in text:
+                start_time = time
+            # elif "please be seated" in text:
+            #     start_time = time
+            elif "name amen" in text and start_time:
+                if time - start_time >= timedelta(
+                    minutes=20
+                ) and time - start_time <= timedelta(minutes=40):
+                    intermediate_texts = [
+                        txt for t, txt in events if start_time < t < time
+                    ]
+                    intermediate_texts.pop(0)
+                    if not any("please be seated" in txt for txt in intermediate_texts):
+                        end_time = events[i + 1][0]
+                        break
+            # elif "let's stand" in text and start_time:
+            #     if time - start_time >= timedelta(minutes=20) and time - start_time <= timedelta(minutes=40):
+            #         intermediate_texts = [txt for t, txt in events if start_time < t < time]
+            #         intermediate_texts.pop(0)
+            #         if not any("please be seated" in txt for txt in intermediate_texts):
+            #             end_time = events[i - 1][0]
+            #             break
+            elif "closing hymn" in text and start_time:
+                if time - start_time >= timedelta(
+                    minutes=20
+                ) and time - start_time <= timedelta(minutes=45):
+                    intermediate_texts = [
+                        txt for t, txt in events if start_time < t < time
+                    ]
+                    intermediate_texts.pop(0)
+                    if not any("please be seated" in txt for txt in intermediate_texts):
+                        end_time = events[i - 2][0]
+                        break
+        if start_time and end_time:
+            self.start = start_time
+            self.end = end_time
+            return
+        elif start_time:
+            self.start = start_time
+            self.end = "0:50:00"
+            return
+        else:
+            self.start = "0:20:00"
+            self.end = "0:50:00"
+            return
+
+    # MARK: Action methods
+    # Method to download the sermon video
     def download(self):
         self.filename = (
             "process/"
@@ -207,6 +285,7 @@ class Sermon:
         else:
             self.video = self.rawVideo
 
+    # Method to trim the downloaded video to the sermon portion
     def trimVideo(self):
         log("Trimming livestream...")
         try:
@@ -237,6 +316,7 @@ class Sermon:
         except:
             log("❌\n")
 
+    # Method to process the sermon audio with noise reduction
     def processAudio(self):
         # Run noisereduction on provided file:
         if not self.audio:
@@ -276,6 +356,7 @@ class Sermon:
         except:
             log("❌\n")
 
+    # Method to convert video to audio
     def videoToAudio(self):
         log("Converting video to audio...")
         try:
@@ -289,6 +370,7 @@ class Sermon:
         except:
             log("❌\n")
 
+    # Method to upload the sermon to various platforms
     def upload(self):
         self.download()
         if self.sermonAudio or self.website:
