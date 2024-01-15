@@ -1,5 +1,9 @@
 # Python for PCC
 
+This is a custom API to download, process, and upload sermons automagically with minimal user input.
+
+### Manual Deployment
+
 If you would like to run the uploading scripts manually, you can clone this repo, `cd` into the directory, and
 
 ```
@@ -20,7 +24,19 @@ Then run the API with
 python3 main.py -a
 ```
 
-You can find an example of a frontend for the API we actually use in [upload.vue](examples/Upload.vue). I'd recommend pulling the Docker image from `coventrypca/sermon-api:latest`, or you could clone this repository and build it yourself with `docker build .`.
+You can find an example of a frontend for the API we actually use in [upload.vue](examples/Upload.vue).
+
+To authenticate with Google and upload to Youtube, you'll need to generate OAuth2 credentials [here](https://console.cloud.google.com/projectcreate) with Youtube API access. Download the `client_secrets.json` file to `data/client_secrets.json`, then run
+
+```
+python3 main.py -auth
+```
+
+This will open a webpage where you can authenticate your channel, which will generate an `oauth2.json` file you need to bind to `/app/data/oauth2.json` on your Docker container. This will keep the container permenantly authenticated.
+
+### Docker Deployment (recommended)
+
+The easiest way to run this API is by pulling the Docker image from `coventrypca/sermon-api:latest`, or you could clone this repository and build it yourself with `docker build .`.
 
 To authenticate with Google and upload to Youtube, you'll need to generate OAuth2 credentials [here](https://console.cloud.google.com/projectcreate) with Youtube API access. Download the `client_secrets.json` file and bind the file to `/app/data/client_secrets.json`. First, though, you must run
 
@@ -28,7 +44,7 @@ To authenticate with Google and upload to Youtube, you'll need to generate OAuth
 python3 main.py -auth
 ```
 
-with your `client_secrets.json` file in the data directory on your local machine. This will open a webpage where you can authenticate your channel, which will generate an `oauth2.json` file you need to bind to `/app/data/oauth2.json` on your Docker container. This will keep the container permenantly authenticated.
+This will open a webpage where you can authenticate your channel, which will generate an `oauth2.json` file you need to bind to `/app/data/oauth2.json` on your Docker container. This will keep the container permenantly authenticated.
 
 If you would like to run the API on bare metal, rename `.env_example` to `.env` and fill the variables in there, then run `python3 main.py -a`.
 
